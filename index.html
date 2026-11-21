@@ -177,11 +177,12 @@ ul{margin:6px 0 6px 20px;padding:0}
  <div id="rr"></div>
  <details class="np"><summary>全問の回答と音声スクリプト / All answers and audio scripts</summary><div id="rv"></div></details>
  <div class="acts np">
-  <button type="button" class="btn p" id="xc"><span>CSV</span></button>
-  <button type="button" class="btn p" id="xj"><span>JSON</span></button>
+  <button type="button" class="btn p" id="xcopy"><span>結果をコピー <span class="en" style="display:inline">Copy Result</span></span></button>
+  <button type="button" class="btn g" id="xtxt"><span>テキスト保存 (.txt) <span class="en" style="display:inline">Save Text</span></span></button>
   <button type="button" class="btn g" id="xp"><span>印刷 / PDF <span class="en" style="display:inline">Print</span></span></button>
   <button type="button" class="btn g" id="xr"><span>もう一度 <span class="en" style="display:inline">Restart</span></span></button>
  </div>
+ <div class="as np" id="xm" role="status" aria-live="polite"></div>
  <div class="note"><span class="ja">診断ではなく目安です。採用・評価・解雇の判断には使わず、指導計画に使ってください。</span><span class="en">A guide, not a diagnosis. Use it for training plans, not for hiring, evaluation or dismissal.</span></div>
 </section>
 </div>
@@ -399,29 +400,35 @@ function result(){
  $('rm').innerHTML=`<div>ID: ${esc(S.id||'—')} ／ ${bi(...ROLE[S.role])}</div><div>${fmt(S.date)} ／ ${bi(...modeT)} ／ ${S.rate}x</div>`;
  $('rs').innerHTML=`${tot} / ${Q.length} <span class="en" style="display:inline">· ${need?`要支援 ${need} 項目 / ${need} area(s) needing support`:weak.length?'要観察あり / Some areas to watch':'すべて良好 / All areas good'}</span>`;
  $('rb').innerHTML=S.pc.map(p=>`<div class="sr"><div class="sh"><div>${bi(SEC[p.k].ja,SEC[p.k].en)}</div><div style="text-align:right"><span class="lv l${p.l}">${LV[p.l][0]} / ${LV[p.l][1]}</span><div class="meta">${p.c} / ${p.n}（${p.pct}%）</div></div></div><div class="bar"><i style="width:${p.pct}%"></i></div></div>`).join('');
- $('ra').innerHTML=weak.length?weak.map(p=>`<div class="ad"><h3>${bi(...SEC[p.k].t)}</h3>${bi(...SEC[p.k].x)}</div>`).join(''):`<div class="ad">${bi('4つの側面すべてで良好でした。次は申し送りや緊急時対応など、より高度な場面で確認します。','All four areas were good. Next, check more advanced situations such as handover reports and emergencies.')}</div>`;
- $('iso').innerHTML=weak.length&&S.mode!=='text'?bi('原因の切り分け：同じ問題を「文字表示モード」で再実施してください。文字だと正解できれば聞き取りが主因、文字でも間違えるなら記憶・論理・語彙が主因の可能性があります。音声速度0.8xとも比べます。','Isolating the cause: retake in Text mode. If answers improve with text, listening is the likely cause; if not, memory, logic or vocabulary may be. Also compare with 0.8x speed.'):
-  S.mode==='text'?bi('文字表示モードの結果です。音声モードの結果と比べて、聞き取りの影響をみます。','This is a Text-mode result. Compare it with the audio-mode result to see the effect of listening.'):bi('同じ条件で数か月後に再受験し、変化を確認します。','Retake under the same conditions after a few months to see change.');
+ $('ra').innerHTML=weak.length?weak.map(p=>`<div class="ad"><h3>${bi(...SEC[p.k].t)}</h3>${bi(...SEC[p.k].x)}</div>`).join(''):`<div class="ad">${bi(...GOOD)}</div>`;
+ S.weak=weak;S.iso=weak.length&&S.mode!=='text'?ISO[0]:S.mode==='text'?ISO[1]:ISO[2];$('iso').innerHTML=bi(...S.iso);
  $('rr').innerHTML=Object.keys(ROLE).sort((a,b)=>(b===S.role)-(a===S.role)).map(r=>`<details${r===S.role?' open':''}><summary>${ROLE[r][0]} / ${ROLE[r][1]}${r===S.role?' ★':''}</summary><ul>${ACT[r].map(a=>`<li>${bi(...a)}</li>`).join('')}</ul></details>`).join('');
  $('rv').innerHTML=S.ans.map((a,i)=>`<div class="rv ${a.ok?'ok':'ng'}"><b>Q${i+1} ${a.ok?'○':'×'}</b> ${a.q.ty==='o'?`（${a.part}/${a.q.st.length}）`:''}<br>🔊 ${a.q.a[0]}<br><span class="en" lang="en">${a.q.a[1]}</span>回答 / Answer: ${esc(a.ans)}<br><span class="en">${a.q.x[0]}<br>${a.q.x[1]}</span></div>`).join('')
 }
 
-function cell(v){v=String(v==null?'':v);if(/^[=+\-@\t\r]/.test(v))v="'"+v;return'"'+v.replace(/"/g,'""')+'"'}
 function dl(name,mime,txt){const u=URL.createObjectURL(new Blob([txt],{type:mime})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 const fname=ext=>'shiji-test_'+fmt(S.date).slice(0,10).replace(/-/g,'')+(S.id?'_'+S.id.replace(/ /g,'_'):'')+'.'+ext;
-$('xc').onclick=()=>{
- const R=[['項目 / Field','値 / Value'],['ID',S.id],['実施者区分 / Role',ROLE[S.role].join(' / ')],['実施日時 / Date',fmt(S.date)],['モード / Mode',S.mode],['音声速度 / Speed',S.rate],['合計 / Total',S.pc.reduce((a,p)=>a+p.c,0)+'/'+Q.length],[],['部 / Part','正解 / Correct','問数 / Items','判定 / Level']];
- S.pc.forEach(p=>R.push([SEC[p.k].ja+' / '+SEC[p.k].en,p.c,p.n,LV[p.l].join(' / ')]));
- R.push([],['No','部 / Part','正誤 / Result','順序一致 / Steps in place','回答 / Answer','再生回数 / Plays','回答時間ms / Time ms','割込計算 正解/回答 / Sums ok/tried']);
- S.ans.forEach((a,i)=>R.push([i+1,a.q.s+1,a.ok?'○':'×',a.q.ty==='o'?a.part+'/'+a.q.st.length:'',a.ans,a.pl,a.ms,a.cc?a.cc.ok+'/'+a.cc.n:'']));
- dl(fname('csv'),'text/csv;charset=utf-8','\ufeff'+R.map(r=>r.map(cell).join(',')).join('\r\n'))
-};
-$('xj').onclick=()=>{
- const o={version:1,id:S.id,role:S.role,date:S.date.toISOString(),mode:S.mode,speed:S.rate,
-  parts:S.pc.map(p=>({part:p.k+1,correct:p.c,items:p.n,level:LV[p.l][1]})),
-  items:S.ans.map((a,i)=>({no:i+1,part:a.q.s+1,correct:a.ok,stepsInPlace:a.q.ty==='o'?a.part:null,answer:a.ans,plays:a.pl,ms:a.ms,sums:a.cc}))};
- dl(fname('json'),'application/json',JSON.stringify(o,null,2))
-};
+const L2=a=>a[0]+' / '+a[1];
+const GOOD=['4つの側面すべてで良好でした。次は申し送りや緊急時対応など、より高度な場面で確認します。','All four areas were good. Next, check more advanced situations such as handover reports and emergencies.'];
+const ISO=[['原因の切り分け：同じ問題を「文字表示モード」で再実施してください。文字だと正解できれば聞き取りが主因、文字でも間違えるなら記憶・論理・語彙が主因の可能性があります。音声速度0.8xとも比べます。','Isolating the cause: retake in Text mode. If answers improve with text, listening is the likely cause; if not, memory, logic or vocabulary may be. Also compare with 0.8x speed.'],['文字表示モードの結果です。音声モードの結果と比べて、聞き取りの影響をみます。','This is a Text-mode result. Compare it with the audio-mode result to see the effect of listening.'],['同じ条件で数か月後に再受験し、変化を確認します。','Retake under the same conditions after a few months to see change.']];
+const PN=[['第1部 現場語彙・聞き取り','Part 1 Vocabulary & Listening'],['第2部 連続指示の保持','Part 2 Sequence Memory'],['第3部 時間・条件・優先順位','Part 3 Time, Conditions & Priority'],['第4部 別作業を挟んだ後の記憶','Part 4 Memory after Interruption']];
+function buildText(){
+ const line='========================================',sep='----------------------------------------';
+ const mt={strict:['本番モード','Test mode'],practice:['練習モード','Practice mode'],text:['文字表示モード','Text mode']}[S.mode];
+ const o=[line,'指示理解・実行力診断テスト / Instruction Comprehension Check','ID: '+(S.id||'—'),'実施者区分 / Role: '+L2(ROLE[S.role]),'実施日時 / Date: '+fmt(S.date),'モード・速度 / Mode & Speed: '+L2(mt)+' / '+S.rate+'x','合計 / Total: '+S.pc.reduce((a,p)=>a+p.c,0)+' / '+Q.length,sep,'■ 4つの側面別結果 / Results by Part'];
+ S.pc.forEach(p=>o.push('・'+L2(PN[p.k])+': '+L2(LV[p.l])+' ('+p.c+'/'+p.n+' - '+p.pct+'%)'));
+ o.push('','■ 指導・原因切り分けのヒント / Coaching & Isolation Tips');
+ if(S.weak.length)S.weak.forEach(p=>{o.push('・'+L2(SEC[p.k].t),'  '+SEC[p.k].x[0],'  '+SEC[p.k].x[1])});else o.push('・'+L2(GOOD));
+ o.push('・'+L2(S.iso),line,'※診断ではなく目安です。採用・評価・解雇の判断には使わないでください。','※Screening guide only. Do not use for hiring, evaluation or dismissal.');
+ return o.join('\n')
+}
+function copyText(t){
+ const fb=()=>{try{const a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);const ok=document.execCommand('copy');a.remove();return ok}catch(e){return false}};
+ const done=ok=>{$('xm').textContent=ok?'コピーしました！LINEやメールに貼り付けられます / Copied! Ready to paste into chat or email.':'コピーできませんでした。「テキスト保存」を使ってください / Copy failed. Please use Save Text.'};
+ if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(()=>done(true),()=>done(fb()));else done(fb())
+}
+$('xcopy').onclick=()=>copyText(buildText());
+$('xtxt').onclick=()=>dl(fname('txt'),'text/plain;charset=utf-8','\ufeff'+buildText().replace(/\n/g,'\r\n'));
 $('xp').onclick=()=>window.print();
 $('xr').onclick=()=>location.reload();
 </script>
